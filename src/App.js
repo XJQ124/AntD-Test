@@ -1,100 +1,32 @@
-import React, { useContext, useEffect, useRef, useState } from 'react';
+import React, { useState, } from 'react';
 import { Button, Form, Input, Popconfirm, Table, Drawer } from 'antd';
 
-const { Search } = Input;
-const onSearch = (value, _e, info) => console.log(info?.source, value);
-
-//创建了一个EditableContext上下文对象
-//用于在组件之间传递可编辑表格的上下文信息。
-const EditableContext = React.createContext(null);
-
-//EditableRow组件用于渲染表格的行
-//并通过EditableContext.Provider提供表单上下文。
 const EditableRow = ({ index, ...props }) => {
-  //创建表单实例
   const [form] = Form.useForm();
-  return (
-    //将创建的表单实例‘form’绑定 Form 组件上
-    //component={false} 表示不生成真正的 HTML 表单元素，而只是提供上下文给子组件使用。
+  return ( 
     <Form form={form} component={false}>
-      <EditableContext.Provider value={form}>
         <tr {...props} />
-      </EditableContext.Provider>
     </Form>
   );
 };
-//EditableCell组件是表格中每个可编辑单元格的实现。
-//它包含了编辑状态的管理、输入框的渲染以及保存编辑后的处理逻辑。
-
-//定义一个函数，其包含一些属性
 const EditableCell = ({
   title,  
   editable,
   children,
-  //用途：表示该列在数据源中的索引，用于获取或更新数据源中对应项的值。
-  //类型：字符串。
   dataIndex,
-  //用途：表示该行的数据对象，包含了当前单元格所在行的所有数据。
   record,
   handleSave,
   ...restProps
 }) => {
-  //创建一个editing的状态变量，用于跟踪当前单元格是否处于编辑状态。
-  //setEditing 是一个用于更新 editing 状态的函数。
-  const [editing, setEditing] = useState(false);
-  //创建一个名为 inputRef 的引用，用于在编辑状态下引用输入框元素。这个引用将用于自动聚焦到输入框
-  const inputRef = useRef(null);
-  //使用 React 上下文 useContext 钩子获取上层组件提供的 EditableContext 上下文的值，即表单实例。
-  const form = useContext(EditableContext);
-  useEffect(() => {
-    if (editing) {
-      inputRef.current.focus();
-    }
-  }, [editing]);
-  const toggleEdit = () => {
-    setEditing(!editing);
-    form.setFieldsValue({
-      [dataIndex]: record[dataIndex],
-    });
-  };
-  const save = async () => {
-    try {
-      const values = await form.validateFields();
-      toggleEdit();
-      handleSave({
-        ...record,
-        ...values,
-      });
-    } catch (errInfo) {
-      console.log('Save failed:', errInfo);
-    }
-  };
+  const [editing] = useState(false);
+  
   let childNode = children;
   if (editable) {
     childNode = editing ? (
-      <Form.Item
-        style={{
-          margin: 0,
-        }}
-        name={dataIndex}
-        rules={[
-          {
-            required: true,
-            message: `${title} is required.`,
-          },
-        ]}
-      >
-        <Input ref={inputRef} onPressEnter={save} onBlur={save} />
-      </Form.Item>
+     <>
+     </>
     ) : (
-      <div
-        className="editable-cell-value-wrap"
-        style={{
-          paddingRight: 24,
-        }}
-        onClick={toggleEdit}
-      >
-        {children}
+      <div>
       </div>
     );
   }
@@ -102,82 +34,94 @@ const EditableCell = ({
 };
 const App = () => {
   const [drawerData, setDrawerData] = useState({});
-  //定义抽屉的可见和不可见
-  const [drawerVisible, setDrawerVisible] = useState(false);
-  const [count, setCount] = useState(2);
+  const [open, setOpen] = useState(false);
+
+  const [searchText,setSearchText] = useState('')
+  const [count, setCount] = useState(1);
+
   const [dataSource, setDataSource] = useState([]);
+
+  const [drawerTitle,setDrawerTitle] = useState('添加企业用户')
+  const [form] = Form.useForm();
+
+  const { Search } = Input;
+  const onSearch = (value, _e, info) => {
+    console.log(info?.source, value);
+    setSearchText(value)
+  }
+  //模糊查找部分 filter 过滤器
+  const filterData = dataSource.filter(item => 
+    item.name.includes(searchText) || item.address.includes(searchText)
+    );
+
   const handleEdit = (key) => {
-    const newData = dataSource.map((item) => {
-      if (item.key === key) {
-        return { ...item, editing: true };
-      }
-      return item;
-    });
-    setDataSource(newData);
+    setOpen(true);
+    const index = dataSource.findIndex((item) => item.key === key);
+    if (index !== -1) {
+      dataSource[index].editing = true;
+      setDrawerData(dataSource[index]);
+      setDrawerTitle('编辑用户信息：')
+      //更新修改过的信息
+      setDataSource([...dataSource]); 
+      form.setFieldsValue(dataSource[index])  // 设置编辑时的表单初始值
+    }
   };
 
-
+  //删除，不太好理解
   const handleDelete = (key) => {
     const newData = dataSource.filter((item) => item.key !== key);
     setDataSource(newData);
   };
-  //默认的列
+
   const defaultColumns = [
     {
       title: '序号',
-      dataIndex: 'name',
-      width: '30%',
-      // editable: true,
+      dataIndex: 'number',
+      width: '25%',
+      //序号递增
       render: (_, __, index) => index + 1,
     },
     {
       title: '公司名称',
-      dataIndex: 'age',
+      dataIndex: 'name',
+      width: '25%',
     },
     {
       title: '公司地址',
       dataIndex: 'address',
+      width: '25%',
     },
     {
       title: '操作',
-      dataIndex: 'operation',
+      dataIndex: 'operation', 
+      width: '25%',
+      //两个参数，一个是当前列的值，一个是当前行的数据
       render: (_, record) =>(
         <div>
           <Button style={{marginRight:'5px'}} onClick={() => handleEdit(record.key)} >编辑</Button>
-          <Popconfirm title="Sure to delete?" onConfirm={() => handleDelete(record.key)}>
-            {/* <a>Delete</a> */}
+          <Popconfirm title="确认删除吗?" onConfirm={() => handleDelete(record.key)}>
             <Button danger>删除</Button>
           </Popconfirm>
         </div>
       ),
-        // dataSource.length >= 1 ? (
-        //   <Popconfirm title="Sure to delete?" onConfirm={() => handleDelete(record.key)}>
-        //     <a>删除</a>
-        //   </Popconfirm>
-        // ) : null,
     },
   ];
-
   const handleAdd = () =>{
-    setDrawerVisible(true);
-    //重置drawerData状态
+    setOpen(true);
     setDrawerData({});
-    // setCount(count + 1);
+    form.resetFields();  // 重置表单字段，清空输入框内容
   }
-
 
   const handleSave = (row) => {
     const newData = [...dataSource];
     const index = newData.findIndex((item) => row.key === item.key);
     if (index !== -1) {
-      // 更新现有行
       const item = newData[index];
       newData.splice(index, 1, {
         ...item,
         ...row,
       });
     } else {
-      // 添加新行
       newData.push({
         key: count,
         ...row,
@@ -186,12 +130,15 @@ const App = () => {
     }
     setDataSource(newData);
   };
+  //通过遍历 defaultColumns 数组，生成一个新的 columns 数组。
   const components = {
     body: {
       row: EditableRow,
       cell: EditableCell,
     },
   };
+
+  //官网写的
   const columns = defaultColumns.map((col) => {
     if (!col.editable) {
       return col;
@@ -207,6 +154,8 @@ const App = () => {
       }),
     };
   });
+
+
   return (
     <div style={{padding:'20px'}}>
       <Button
@@ -218,6 +167,8 @@ const App = () => {
       >
         添加企业用户
       </Button>
+
+        {/* 搜索框 */}
       <Search
         placeholder="查询企业信息"
         onSearch={onSearch}
@@ -226,50 +177,47 @@ const App = () => {
         }}
       /> 
       <Table
-        components={components}
-        rowClassName={() => 'editable-row'}
-        bordered
-        dataSource={dataSource}
+        components={components}  
+        rowClassName={() => 'editable-row'}  没用
+        bordered    //显示边框
+        //数据源修改过了，然后更改查询后的索引值问题
+        dataSource={filterData}
         columns={columns}
       />
       <Drawer
-        title="添加企业用户"
-        placement="right"
-        closable={true}
-        onClose={() => setDrawerVisible(false)}
-        visible={drawerVisible}
+        title={drawerTitle} //使用动态的 drawerTitle
+        placement="right" 
+        closable={true}   
+        onClose={() => {
+          setOpen(false)
+          setDrawerTitle('添加企业用户：')
+        }}
+        open={open}
         width={400}
       >
         <Form
+          form={form}
           onFinish={(values) => {
-            // 将表单值与 drawerData 合并
+            //合并得到的新对象
             const mergedData = { ...drawerData, ...values };
-
-            // 使用 handleSave 更新表格数据
             handleSave(mergedData);
-
-            // 隐藏 Drawer
-            setDrawerVisible(false);
+            setOpen(false);
+            setDrawerTitle('添加企业用户：')
           }}
           initialValues={drawerData}
         >
-
-          {/* 在这里添加你的表单字段 */}
-
-          <Form.Item label="公司名称" name="age" rules={[{ required: true, message: '请输入公司名称' }]}>
+          <Form.Item label="公司名称" name="name" rules={[{ required: true, message: '请输入公司名称' }]}>
             <Input />
           </Form.Item>
 
           <Form.Item label="公司地址" name="address" rules={[{ required: true, message: '请输入公司地址' }]}>
             <Input />
           </Form.Item>
-
           <Button type="primary" htmlType="submit">
             提交
           </Button>
         </Form>
       </Drawer>
-
     </div>
   );
 };
