@@ -61,9 +61,8 @@ const App = () => {
       dataSource[index].editing = true;
       setDrawerData(dataSource[index]);
       setDrawerTitle('编辑用户信息：')
-      //更新修改过的信息
       setDataSource([...dataSource]); 
-      form.setFieldsValue(dataSource[index])  // 设置编辑时的表单初始值
+      form.setFieldsValue(dataSource[index])  
     }
   };
 
@@ -168,7 +167,6 @@ const App = () => {
         添加企业用户
       </Button>
 
-        {/* 搜索框 */}
       <Search
         placeholder="查询企业信息"
         onSearch={onSearch}
